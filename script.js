@@ -7,6 +7,7 @@ const ALERT_START_THRESHOLD = 50;    // 50%から2秒毎にアラート
 const CONTINUOUS_THRESHOLD = 70;      // 70%から連続再生
 const EYE_CLOSED_DURATION = 5000;     // 5秒閉眼でアラート
 const ALERT_INTERVAL = 2000;          // 2秒毎にアラート（50-69%時）
+const ALERT_COOLDOWN = 5 * 60 * 1000; // 5分間のクールタイム
 // ============================================
 
 const video = document.getElementById("video");
@@ -31,6 +32,8 @@ let alertAudio = null;
 let isPlaying = false;
 let alertIntervalId = null;
 let currentAlertMode = 'none';  // 'none', 'interval', 'continuous'
+let lastAlertTime = 0;          // 最後にアラートが鳴った時刻
+let alertTriggered = false;     // アラートが発動したかどうか
 
 // Eye tracking
 let eyeClosedStartTime = null;  // 閉眼開始時刻
@@ -101,6 +104,18 @@ function stopAudio() {
   currentAlertMode = 'none';
 }
 
+// Check if in cooldown period
+function isInCooldown() {
+  if (!alertTriggered) return false;
+  return (Date.now() - lastAlertTime) < ALERT_COOLDOWN;
+}
+
+// Get remaining cooldown time in seconds
+function getCooldownRemaining() {
+  const remaining = ALERT_COOLDOWN - (Date.now() - lastAlertTime);
+  return Math.ceil(remaining / 1000);
+}
+
 // Update alert based on fatigue and eye state
 function updateAlert(fatigue, eyeOpen) {
   // 開眼確認で即停止
@@ -108,8 +123,19 @@ function updateAlert(fatigue, eyeOpen) {
     if (currentAlertMode !== 'none') {
       stopAudio();
       eyeClosedWarningEl.classList.add('hidden');
+      // アラートが鳴っていた場合、クールタイム開始
+      if (alertTriggered) {
+        lastAlertTime = Date.now();
+      }
     }
     eyeClosedStartTime = null;
+    return;
+  }
+
+  // クールタイム中はアラートを鳴らさない
+  if (isInCooldown()) {
+    eyeClosedWarningEl.classList.remove('hidden');
+    eyeClosedWarningEl.textContent = `クールタイム中... ${Math.floor(getCooldownRemaining() / 60)}:${(getCooldownRemaining() % 60).toString().padStart(2, '0')}`;
     return;
   }
 
@@ -130,6 +156,7 @@ function updateAlert(fatigue, eyeOpen) {
         stopAudio();
         startContinuousPlay();
         currentAlertMode = 'continuous';
+        alertTriggered = true;
       }
       return;
     } else if (closedDuration >= 1000) {
@@ -145,6 +172,7 @@ function updateAlert(fatigue, eyeOpen) {
       stopAudio();
       startContinuousPlay();
       currentAlertMode = 'continuous';
+      alertTriggered = true;
     }
   } else if (fatigue >= ALERT_START_THRESHOLD) {
     // 50-69%：2秒毎
@@ -155,6 +183,7 @@ function updateAlert(fatigue, eyeOpen) {
         playAlertOnce();
       }, ALERT_INTERVAL);
       currentAlertMode = 'interval';
+      alertTriggered = true;
     }
   } else {
     // 50%未満：停止
