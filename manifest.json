@@ -1,0 +1,18 @@
+{
+  "name": "Eye Fatigue Monitor",
+  "short_name": "Eye Monitor",
+  "description": "眠気に負けそうなあなたを声で起こします",
+  "start_url": "/gambare/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

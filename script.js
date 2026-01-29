@@ -438,6 +438,10 @@ async function init() {
     canvas.height = video.videoHeight;
 
     statusEl.textContent = "測定中";
+
+    // Prevent screen sleep
+    requestWakeLock();
+
     requestAnimationFrame(process);
 
   } catch (e) {
@@ -479,3 +483,31 @@ async function process(time) {
 
   requestAnimationFrame(process);
 }
+
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+    .then(() => console.log('Service Worker registered'))
+    .catch((e) => console.log('Service Worker registration failed:', e));
+}
+
+// Wake Lock to prevent screen sleep
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      console.log('Wake Lock activated');
+    } catch (e) {
+      console.log('Wake Lock failed:', e);
+    }
+  }
+}
+
+// Re-acquire wake lock when page becomes visible again
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && wakeLock === null) {
+    requestWakeLock();
+  }
+});
