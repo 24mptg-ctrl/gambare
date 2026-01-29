@@ -358,10 +358,8 @@ function updateFatigueUI(fatigue) {
   fatigueFillEl.style.width = `${fatigue}%`;
   fatigueFillEl.style.background = `linear-gradient(90deg, #4ade80, ${color})`;
 
-  // Icon based on state
-  if (isEyeClosed) {
-    fatigueIconEl.textContent = '😴';
-  } else if (fatigue >= 70) {
+  // Icon based on fatigue level only
+  if (fatigue >= 70) {
     fatigueIconEl.textContent = '😫';
   } else if (fatigue >= 50) {
     fatigueIconEl.textContent = '😐';
