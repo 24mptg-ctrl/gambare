@@ -24,8 +24,6 @@ const fatigueIconEl = document.getElementById("fatigue-icon");
 const startOverlay = document.getElementById("start-overlay");
 const startButton = document.getElementById("start-button");
 const backButton = document.getElementById("back-button");
-const calibrationOverlay = document.getElementById("calibration-overlay");
-const calibrationCountdown = document.getElementById("calibration-countdown");
 
 // State
 let faceLandmarker = null;
@@ -265,26 +263,19 @@ function updateEyeFatigue(ear) {
   const eyeOpen = checkEyeOpen(ear);
   isEyeClosed = !eyeOpen;
 
-  // Calibration: collect first 120 frames (~4 sec) to establish baseline
-  // First 30 frames (~1 sec): silent, then show overlay for 3 sec
+  // Calibration: collect first 90 frames (~3 sec) to establish baseline
   if (baselineEAR === null) {
     calibrationFrames.push(ear);
     currentFatigue = 20;
     updateFatigueUI(20);
 
-    // Show calibration overlay after 1 second (30 frames)
-    if (calibrationFrames.length > 30) {
-      calibrationOverlay.classList.remove('hidden');
-      const remaining = Math.ceil((120 - calibrationFrames.length) / 30);
-      calibrationCountdown.textContent = remaining;
-      statusEl.textContent = 'キャリブレーション中...';
-      statusEl.style.color = '#feca57';
-    }
+    const remaining = Math.ceil((90 - calibrationFrames.length) / 30);
+    statusEl.textContent = `キャリブレーション中... 普段通り目を開けてください (${remaining}秒)`;
+    statusEl.style.color = '#feca57';
 
-    if (calibrationFrames.length >= 120) {
+    if (calibrationFrames.length >= 90) {
       calibrationFrames.sort((a, b) => b - a);
       baselineEAR = calibrationFrames[Math.floor(calibrationFrames.length * 0.2)];
-      calibrationOverlay.classList.add('hidden');
       statusEl.textContent = '測定中';
       statusEl.style.color = '#888';
     }
