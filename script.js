@@ -54,8 +54,12 @@ let lastTime = 0;
 function initAudio() {
   const audioFile = selectedVoice === 'm' ? 'm.mp3' : 'f.mp3';
   alertAudio = new Audio(audioFile);
+  alertAudio.preload = 'auto';
   alertAudio.addEventListener('ended', () => {
     isPlaying = false;
+  });
+  alertAudio.addEventListener('error', (e) => {
+    console.error('Audio error:', e);
   });
 }
 
@@ -343,10 +347,14 @@ startButton.addEventListener('click', async () => {
   // Initialize audio
   initAudio();
 
-  // Play short sound to unlock audio (required for mobile)
-  await alertAudio.play().catch(() => {});
-  alertAudio.pause();
-  alertAudio.currentTime = 0;
+  // Unlock audio (required for mobile)
+  try {
+    await alertAudio.play();
+    alertAudio.pause();
+    alertAudio.currentTime = 0;
+  } catch (e) {
+    console.log('Audio unlock:', e);
+  }
 
   // Hide overlay
   startOverlay.classList.add('hidden');
