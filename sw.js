@@ -6,7 +6,8 @@ const urlsToCache = [
   '/gambare/script.js',
   '/gambare/m.mp3',
   '/gambare/f.mp3',
-  '/gambare/about.html'
+  '/gambare/about.html',
+  '/gambare/terms.html'
 ];
 
 // Install event
