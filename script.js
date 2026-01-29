@@ -31,12 +31,9 @@ let selectedVoice = 'm';  // 'm' or 'f'
 
 // Audio
 let alertAudio = null;
-let audioContext = null;
-let gainNode = null;
 let isPlaying = false;
 let alertIntervalId = null;
 let currentAlertMode = 'none';  // 'none', 'interval', 'continuous'
-const VOLUME_BOOST = 2.0;       // 音量ブースト（2倍）
 
 // Eye tracking
 let eyeClosedStartTime = null;  // 閉眼開始時刻
@@ -53,23 +50,14 @@ let calibrationFrames = [];
 let fps = 30;
 let lastTime = 0;
 
-// Initialize audio with selected voice and volume boost
+// Initialize audio with selected voice
 function initAudio() {
   const audioFile = selectedVoice === 'm' ? 'm.mp3' : 'f.mp3';
   alertAudio = new Audio(audioFile);
+  alertAudio.volume = 1.0;  // 最大音量
   alertAudio.addEventListener('ended', () => {
     isPlaying = false;
   });
-
-  // Web Audio API for volume boost
-  audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const source = audioContext.createMediaElementSource(alertAudio);
-  gainNode = audioContext.createGain();
-  gainNode.gain.value = VOLUME_BOOST;
-  source.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-
-  // Preload
   alertAudio.load();
 }
 
@@ -359,12 +347,12 @@ startButton.addEventListener('click', async () => {
   // Initialize audio
   initAudio();
 
-  // Play test sound to unlock audio
-  gainNode.gain.value = 0.1;
+  // Play test sound to unlock audio (required for mobile)
+  alertAudio.volume = 0.01;
   await alertAudio.play().catch(() => {});
   alertAudio.pause();
   alertAudio.currentTime = 0;
-  gainNode.gain.value = VOLUME_BOOST;
+  alertAudio.volume = 1.0;
 
   // Hide overlay
   startOverlay.classList.add('hidden');
