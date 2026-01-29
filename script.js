@@ -7,7 +7,7 @@ const ALERT_START_THRESHOLD = 50;     // 50%から2秒毎にアラート
 const CONTINUOUS_THRESHOLD = 70;      // 70%から連続再生
 const EYE_CLOSED_DURATION = 5000;     // 5秒閉眼でアラート
 const ALERT_INTERVAL = 2000;          // 2秒毎にアラート
-const OPEN_EYE_GRACE_PERIOD = 5000;   // 開眼後5秒間はアラートを鳴らさない
+const COOLDOWN_DURATION = 30000;      // 30秒クールダウン
 const PERCLOS_WINDOW = 30;            // 30秒間のウィンドウ（緩やかに）
 const FATIGUE_MULTIPLIER = 120;       // 疲労度係数（緩やかに）
 // ============================================
@@ -24,6 +24,7 @@ const fatigueIconEl = document.getElementById("fatigue-icon");
 const startOverlay = document.getElementById("start-overlay");
 const startButton = document.getElementById("start-button");
 const backButton = document.getElementById("back-button");
+const awakeButton = document.getElementById("awake-button");
 
 // State
 let faceLandmarker = null;
@@ -37,9 +38,12 @@ let currentAlertMode = 'none';  // 'none', 'interval', 'continuous'
 
 // Eye tracking
 let eyeClosedStartTime = null;  // 閉眼開始時刻
-let lastOpenEyeTime = 0;        // 最後に開眼を確認した時刻
 let isEyeClosed = false;
 let currentFatigue = 20;
+
+// Cooldown
+let cooldownEndTime = 0;        // クールダウン終了時刻
+let cooldownIntervalId = null;  // クールダウン表示更新用
 
 // Eye fatigue tracking (PERCLOS)
 let earHistory = [];
@@ -114,51 +118,65 @@ function stopAudio() {
   currentAlertMode = 'none';
 }
 
-// Check if in grace period after opening eyes
-function isInGracePeriod() {
-  return (Date.now() - lastOpenEyeTime) < OPEN_EYE_GRACE_PERIOD;
+// Check if in cooldown period
+function isInCooldown() {
+  return Date.now() < cooldownEndTime;
 }
 
-// Stop audio but let current sound finish
-function stopAlertButFinishCurrent() {
-  // インターバルは停止（次の再生を防ぐ）
-  if (alertIntervalId) {
-    clearInterval(alertIntervalId);
-    alertIntervalId = null;
-  }
+// Start cooldown
+function startCooldown() {
+  cooldownEndTime = Date.now() + COOLDOWN_DURATION;
+  stopAudio();
 
-  // ループを解除（現在の再生は最後まで続く）
-  if (alertAudio) {
-    alertAudio.loop = false;
-  }
+  // Update button appearance
+  awakeButton.classList.add('cooldown');
 
-  currentAlertMode = 'none';
+  // Update button text with countdown
+  updateCooldownDisplay();
+  cooldownIntervalId = setInterval(updateCooldownDisplay, 1000);
+}
+
+// Update cooldown display
+function updateCooldownDisplay() {
+  const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+  if (remaining > 0) {
+    awakeButton.textContent = `クールダウン中 ${remaining}秒`;
+  } else {
+    // Cooldown ended
+    clearInterval(cooldownIntervalId);
+    cooldownIntervalId = null;
+    awakeButton.textContent = '目が覚めた';
+    awakeButton.classList.remove('cooldown');
+  }
 }
 
 // Update alert based on fatigue and eye state
 function updateAlert(fatigue, eyeOpen) {
-  // 開眼確認で停止（ただし再生中の音声は最後まで）
-  if (eyeOpen) {
-    if (currentAlertMode !== 'none') {
-      stopAlertButFinishCurrent();
-    }
-    lastOpenEyeTime = Date.now();
-    eyeClosedStartTime = null;
-    eyeClosedWarningEl.classList.add('hidden');
-    return;
+  // Show/hide awake button based on alert state
+  if (currentAlertMode !== 'none' || isInCooldown()) {
+    awakeButton.classList.remove('hidden');
   }
 
-  // 開眼後5秒間はアラートを鳴らさない（表示なし）
-  if (isInGracePeriod()) {
-    return;
-  }
-
-  // 閉眼時間チェック
+  // Track eye closed duration
   if (!eyeOpen) {
     if (eyeClosedStartTime === null) {
       eyeClosedStartTime = performance.now();
     }
+  } else {
+    eyeClosedStartTime = null;
+    eyeClosedWarningEl.classList.add('hidden');
+  }
 
+  // During cooldown, no alerts
+  if (isInCooldown()) {
+    if (currentAlertMode !== 'none') {
+      stopAudio();
+    }
+    return;
+  }
+
+  // Check eye closed duration
+  if (!eyeOpen && eyeClosedStartTime !== null) {
     const closedDuration = performance.now() - eyeClosedStartTime;
 
     // 5秒閉眼で強制アラート
@@ -175,8 +193,6 @@ function updateAlert(fatigue, eyeOpen) {
     } else if (closedDuration >= 2000) {
       eyeClosedWarningEl.classList.remove('hidden');
       eyeClosedWarningEl.textContent = `閉眼検出中... ${Math.floor(closedDuration / 1000)}秒`;
-    } else {
-      eyeClosedWarningEl.classList.add('hidden');
     }
   }
 
@@ -184,7 +200,6 @@ function updateAlert(fatigue, eyeOpen) {
   if (fatigue >= CONTINUOUS_THRESHOLD) {
     // 70%以上：連続再生
     if (currentAlertMode !== 'continuous') {
-      console.log('Alert: fatigue >= 70%, starting continuous play');
       stopAudio();
       startContinuousPlay();
       currentAlertMode = 'continuous';
@@ -192,7 +207,6 @@ function updateAlert(fatigue, eyeOpen) {
   } else if (fatigue >= ALERT_START_THRESHOLD) {
     // 50-69%：2秒毎
     if (currentAlertMode !== 'interval') {
-      console.log('Alert: fatigue >= 50%, starting interval play');
       stopAudio();
       playAlertOnce();
       alertIntervalId = setInterval(() => {
@@ -204,6 +218,10 @@ function updateAlert(fatigue, eyeOpen) {
     // 50%未満：停止
     if (currentAlertMode !== 'none') {
       stopAudio();
+    }
+    // Hide awake button when not alerting and not in cooldown
+    if (!isInCooldown()) {
+      awakeButton.classList.add('hidden');
     }
   }
 }
@@ -349,6 +367,13 @@ function updateFatigueUI(fatigue) {
 // Back button handler - reload page to return to start
 backButton.addEventListener('click', () => {
   location.reload();
+});
+
+// Awake button handler - start cooldown
+awakeButton.addEventListener('click', () => {
+  if (!isInCooldown()) {
+    startCooldown();
+  }
 });
 
 // Start button handler
