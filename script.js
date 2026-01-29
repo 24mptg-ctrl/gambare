@@ -269,15 +269,9 @@ function updateEyeFatigue(ear) {
     currentFatigue = 20;
     updateFatigueUI(20);
 
-    const remaining = Math.ceil((90 - calibrationFrames.length) / 30);
-    statusEl.textContent = `キャリブレーション中... 普段通り目を開けてください (${remaining}秒)`;
-    statusEl.style.color = '#feca57';
-
     if (calibrationFrames.length >= 90) {
       calibrationFrames.sort((a, b) => b - a);
       baselineEAR = calibrationFrames[Math.floor(calibrationFrames.length * 0.2)];
-      statusEl.textContent = '測定中';
-      statusEl.style.color = '#888';
     }
     return;
   }
